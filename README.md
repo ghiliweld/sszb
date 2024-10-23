@@ -1,2 +1,2 @@
 # sszb
-High Performance SSZ Implementation'[
+High Performance SSZ Implementation
