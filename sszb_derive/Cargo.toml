@@ -1,0 +1,28 @@
+[package]
+name = "sszb_derive"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "sszb_derive"
+proc-macro = true
+
+[dependencies]
+syn = { version = "2.0.69", features = ["full"] }
+proc-macro2 = "1.0.23"
+quote = "1.0.18"
+darling = "0.20.9"
+easy-ext = "1.0.2"
+proc-macro-crate = "3.2.0"
+itertools = "0.13.0"
+bytes = "1.7.2"
+ssz_types = "0.8.0"
+typenum = "1.17.0"
+smallvec = "1.13.2"
+milhouse = "0.3.0"
+ethereum-types = "0.15.1"
+alloy-primitives = "0.8.8"
+criterion = "0.5.1"
+
+[dev-dependencies]
+sszb = { path = "../sszb_lib" }
