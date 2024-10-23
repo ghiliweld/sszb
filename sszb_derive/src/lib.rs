@@ -219,11 +219,19 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
                 sszb::read_offset_from_buf(fixed_bytes)?;
                 // read the next length of the variable type
                 // by calling .next() on offset_iter (defined in ssz_read)
-                let field_len = offset_iter.next().unwrap();
-                let bytes = variable_bytes.copy_to_bytes(field_len);
-                // both the fixed and variable buffers are advanced at this point
-                // even though we don't make a call to ssz_read with them
-                <#ty as sszb::SszDecode>::from_ssz_bytes(&bytes)?
+                let field_len = offset_iter.next().unwrap()?;
+                if field_len > variable_bytes.remaining() {
+                    return Err(sszb::DecodeError::InvalidByteLength {
+                        len: field_len,
+                        expected: variable_bytes.remaining(),
+                    })
+                } else {
+
+                    let bytes = variable_bytes.copy_to_bytes(field_len);
+                    // both the fixed and variable buffers are advanced at this point
+                    // even though we don't make a call to ssz_read with them
+                    <#ty as sszb::SszDecode>::from_ssz_bytes(&bytes)?
+                }
             }
         });
     }
@@ -308,7 +316,10 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
                         .map(move |(start_result, end_result)| {
                             let start = start_result.unwrap();
                             let end = end_result.unwrap();
-                            end - start
+                            match end.checked_sub(start) {
+                                Some(res) => Ok(res),
+                                None => Err(sszb::DecodeError::OffsetsAreDecreasing(start)),
+                            }
                         });
 
                     Ok(Self {
@@ -326,8 +337,15 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
                         .checked_add(#fixed_len_stmts)
                         .expect("decode ssz_fixed_len length overflow");
                 )*
-                let (mut fixed_bytes, mut variable_bytes) = bytes.split_at(len);
-                <Self as SszDecode>::ssz_read(&mut fixed_bytes, &mut variable_bytes)
+                if len > bytes.len() {
+                    return Err(sszb::DecodeError::InvalidByteLength {
+                        len: bytes.len(),
+                        expected: len,
+                    })
+                } else {
+                    let (mut fixed_bytes, mut variable_bytes) = bytes.split_at(len);
+                    <Self as SszDecode>::ssz_read(&mut fixed_bytes, &mut variable_bytes)
+                }
             }
         }
     };

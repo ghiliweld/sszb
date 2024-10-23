@@ -2,7 +2,7 @@ use bytes::buf::{Buf, BufMut};
 use itertools::Itertools as _;
 use milhouse::List;
 use ssz_types::BitList;
-use sszb::{SszDecode, SszEncode};
+use sszb::{DecodeError, SszDecode, SszEncode};
 use sszb_derive::{SszbDecode, SszbEncode};
 use std::fmt::Debug;
 
@@ -43,7 +43,7 @@ struct VariableC {
 pub type BitList8 = BitList<typenum::U8>;
 
 #[test]
-fn struct_test() {
+fn struct_tests() {
     let var_a = VariableA { a: 1, b: 32 };
 
     let bytes = SszEncode::to_ssz(&var_a);
@@ -90,20 +90,38 @@ fn struct_test() {
 }
 
 #[test]
-fn test_a() {
-    VariableB::from_ssz_bytes(&[]);
+fn test_empty_var_b() {
+    assert_eq!(
+        VariableB::from_ssz_bytes(&[]).is_err_and(|e| e
+            == DecodeError::InvalidByteLength {
+                len: 0,
+                expected: 6
+            }),
+        true
+    );
 }
 
 #[test]
-fn test_b() {
+fn test_bad_offset_var_b() {
     let bytes = vec![
         2, 0, 89, 0, 0, 0, 0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 0,
     ];
-    VariableB::from_ssz_bytes(&bytes);
+    assert_eq!(
+        VariableB::from_ssz_bytes(&bytes)
+            .is_err_and(|e| e == DecodeError::OffsetsAreDecreasing(89)),
+        true
+    );
 }
 
 #[test]
-fn test_c() {
+fn test_invalid_length_var_b() {
     let bytes = vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 3, 0, 4, 0];
-    VariableB::from_ssz_bytes(&bytes);
+    assert_eq!(
+        VariableB::from_ssz_bytes(&bytes).is_err_and(|e| e
+            == DecodeError::InvalidByteLength {
+                len: 16,
+                expected: 10
+            }),
+        true
+    );
 }
