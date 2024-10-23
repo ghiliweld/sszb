@@ -88,3 +88,22 @@ fn struct_test() {
     }
     assert_eq!(b.to_ssz(), vec![255, 0b0000_0001]);
 }
+
+#[test]
+fn test_a() {
+    VariableB::from_ssz_bytes(&[]);
+}
+
+#[test]
+fn test_b() {
+    let bytes = vec![
+        2, 0, 89, 0, 0, 0, 0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0, 8, 0, 9, 0,
+    ];
+    VariableB::from_ssz_bytes(&bytes);
+}
+
+#[test]
+fn test_c() {
+    let bytes = vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 3, 0, 4, 0];
+    VariableB::from_ssz_bytes(&bytes);
+}
