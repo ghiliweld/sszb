@@ -19,6 +19,12 @@ fn basic_types(c: &mut Criterion) {
 
     group.throughput(Throughput::Bytes(list_bytes.len() as u64));
 
+    group.bench_with_input(
+        BenchmarkId::new("Milhouse", "decode"),
+        &list_bytes,
+        |b, bytes| b.iter(|| <List<u64, C> as SszDecode>::from_ssz_bytes(bytes).unwrap()),
+    );
+
     group.bench_with_input(BenchmarkId::new("Milhouse", "to_ssz"), &list, |b, list| {
         b.iter(|| list.to_ssz())
     });
