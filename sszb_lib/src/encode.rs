@@ -27,7 +27,6 @@ pub trait SszEncode {
     // ssz_write should be used if there's a spare buffer around to write into
     fn to_ssz(&self) -> Vec<u8> {
         // buf must be appropriately sized
-        // let mut buf = Vec::with_capacity(self.ssz_bytes_len());
         let mut buf = vec![0u8; self.ssz_bytes_len()];
         self.ssz_write(&mut buf.as_mut_slice());
 
