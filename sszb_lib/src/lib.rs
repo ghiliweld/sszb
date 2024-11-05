@@ -10,4 +10,4 @@ pub use decode::{
     SszDecode,
 };
 pub use encode::*;
-pub use hash::SszHash;
+pub use hash::*;
