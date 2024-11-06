@@ -1,5 +1,6 @@
 mod decode;
 mod encode;
+mod ghilhouse_impls;
 mod hash;
 
 pub const BYTES_PER_LENGTH_OFFSET: usize = 4;
@@ -11,3 +12,5 @@ pub use decode::{
 };
 pub use encode::*;
 pub use hash::SszHash;
+
+pub use ghilhouse_impls::*;
