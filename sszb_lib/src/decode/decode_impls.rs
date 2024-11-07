@@ -412,7 +412,7 @@ impl<N: Unsigned + Clone> SszDecode for BitList<N> {
     }
 }
 
-impl<T: SszDecode + Value + Default, N: Unsigned> SszDecode for PersistentList<T, N> {
+impl<T: SszDecode + Value, N: Unsigned> SszDecode for PersistentList<T, N> {
     fn is_ssz_static() -> bool {
         false
     }
