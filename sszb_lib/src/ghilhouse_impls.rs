@@ -3,8 +3,8 @@ use crate::{
     SszDecode, SszEncode, TryFromIter, BYTES_PER_LENGTH_OFFSET,
 };
 use bytes::buf::{Buf, BufMut};
-use first_err::FirstErr;
 use ghilhouse::{Error as GhilhouseError, List, Value, Vector};
+use itertools::{process_results, Itertools as _};
 use typenum::Unsigned;
 
 impl<T, N> TryFromIter<T> for List<T, N>
@@ -124,17 +124,13 @@ impl<T: SszDecode + Value, N: Unsigned> SszDecode for List<T, N> {
 
             let bytes = variable_bytes.copy_to_bytes(num_items * <T as SszDecode>::ssz_fixed_len());
 
-            // first_err_or_else returns the first error in the iterator or returns Ok(List<T>)
-            bytes
-                .chunks(<T as SszDecode>::ssz_fixed_len())
-                .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk))
-                .first_err_or_else(|iter| match List::try_from_iter(iter) {
-                    Ok(list) => Ok(list),
-                    Err(e) => Err(DecodeError::BytesInvalid(format!(
-                        "Error processing results: {:?}",
-                        e
-                    ))),
-                })?
+            process_results(
+                bytes
+                    .chunks_exact(<T as SszDecode>::ssz_fixed_len())
+                    .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk)),
+                |iter| List::try_from_iter(iter),
+            )?
+            .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)))
         } else {
             // we move over variable_bytes to var_offsets (of type Bytes) since it has more methods for us to work with
             let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
@@ -281,16 +277,13 @@ impl<T: SszDecode + Value, N: Unsigned> SszDecode for Vector<T, N> {
             // create slice of length `len * T::ssz_fixed_len`
             let bytes = fixed_bytes.copy_to_bytes(len * <T as SszDecode>::ssz_fixed_len());
 
-            bytes
-                .chunks(<T as SszDecode>::ssz_fixed_len())
-                .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk))
-                .first_err_or_else(|iter| match Vector::try_from_iter(iter) {
-                    Ok(list) => Ok(list),
-                    Err(e) => Err(DecodeError::BytesInvalid(format!(
-                        "Error processing results: {:?}",
-                        e
-                    ))),
-                })?
+            process_results(
+                bytes
+                    .chunks_exact(<T as SszDecode>::ssz_fixed_len())
+                    .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk)),
+                |iter| Vector::try_from_iter(iter),
+            )?
+            .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)))
         } else {
             // T is not static so data resides in variable_bytes
             let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
