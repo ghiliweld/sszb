@@ -80,7 +80,7 @@ impl<T: SszEncode + Value, N: Unsigned> SszEncode for List<T, N> {
     }
 }
 
-impl<T: SszDecode + Value + Default, N: Unsigned> SszDecode for List<T, N> {
+impl<T: SszDecode + Value, N: Unsigned> SszDecode for List<T, N> {
     fn is_ssz_static() -> bool {
         false
     }
