@@ -18,6 +18,8 @@ paste = "1.0.15"
 smallvec = "1.13.2"
 ssz_types = "0.8.0"
 typenum = "1.17.0"
+tree_hash = "0.8.0"
+tree_hash_derive = "0.8.0"
 
 [dev-dependencies]
 sszb_derive = { path = "../sszb_derive" }
