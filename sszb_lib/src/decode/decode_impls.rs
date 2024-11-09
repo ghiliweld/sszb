@@ -112,6 +112,37 @@ impl SszDecode for bool {
     }
 }
 
+impl<const N: usize> SszDecode for [u8; N] {
+    fn is_ssz_static() -> bool {
+        true
+    }
+
+    fn ssz_fixed_len() -> usize {
+        N
+    }
+
+    fn ssz_max_len() -> usize {
+        N
+    }
+
+    fn ssz_read(
+        fixed_bytes: &mut impl Buf,
+        _variable_bytes: &mut impl Buf,
+    ) -> Result<Self, DecodeError> {
+        let len = fixed_bytes.remaining();
+        let expected = <Self as SszDecode>::ssz_fixed_len();
+
+        let mut bytes: [u8; N] = [0u8; N];
+        fixed_bytes.copy_to_slice(&mut bytes[..]);
+
+        if len < expected {
+            Err(DecodeError::InvalidByteLength { len, expected })
+        } else {
+            Ok(bytes)
+        }
+    }
+}
+
 impl SszDecode for Address {
     fn is_ssz_static() -> bool {
         true

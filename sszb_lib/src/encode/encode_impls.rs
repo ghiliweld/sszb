@@ -101,6 +101,34 @@ impl SszEncode for bool {
     }
 }
 
+impl<const N: usize> SszEncode for [u8; N] {
+    fn is_ssz_static() -> bool {
+        true
+    }
+
+    fn ssz_fixed_len() -> usize {
+        N
+    }
+
+    fn ssz_max_len() -> usize {
+        N
+    }
+
+    fn ssz_bytes_len(&self) -> usize {
+        N
+    }
+
+    fn ssz_write_fixed(&self, _offset: &mut usize, buf: &mut impl BufMut) {
+        self.ssz_write(buf);
+    }
+
+    fn ssz_write_variable(&self, _buf: &mut impl BufMut) {}
+
+    fn ssz_write(&self, buf: &mut impl BufMut) {
+        buf.put_slice(self.as_slice());
+    }
+}
+
 impl SszEncode for Address {
     fn is_ssz_static() -> bool {
         true
