@@ -4,7 +4,7 @@ use crate::{
 };
 use bytes::buf::{Buf, BufMut};
 use ghilhouse::{Error as GhilhouseError, List, Value, Vector};
-use itertools::{process_results, Itertools as _};
+use itertools::process_results;
 use typenum::Unsigned;
 
 impl<T, N> TryFromIter<T> for List<T, N>
