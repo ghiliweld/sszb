@@ -1,10 +1,10 @@
 use alloy_primitives::{Address, FixedBytes, B256, U256};
 use bytes::buf::{Buf, BufMut};
-use ghilhouse::List;
 use itertools::Itertools as _;
-use ssz_types::{BitList, BitVector, FixedVector};
+use ssz_types::{BitList, BitVector, FixedVector, VariableList as List};
 use sszb::*;
 use sszb_derive::{SszbDecode, SszbEncode};
+use tree_hash::*;
 use tree_hash_derive::TreeHash;
 
 type ByteList<N> = List<u8, N>;
@@ -12,6 +12,7 @@ type ByteVector<N> = FixedVector<u8, N>;
 pub type SignatureBytes = ByteVector<typenum::U96>;
 type PublicKeyBytes = [u8; 48];
 type KZGCommitment = [u8; 48];
+type H32 = [u8; 4];
 type H160 = Address;
 type H256 = B256;
 

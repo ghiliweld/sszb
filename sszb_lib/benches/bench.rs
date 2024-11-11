@@ -4,6 +4,9 @@ use sszb::{SszDecode, SszEncode};
 pub mod beacon_block;
 pub use beacon_block::SignedBeaconBlock;
 
+pub mod beacon_state;
+pub use beacon_state::BeaconState;
+
 fn basic_types(c: &mut Criterion) {
     use milhouse::List;
 
@@ -28,14 +31,7 @@ fn basic_types(c: &mut Criterion) {
     group.bench_with_input(BenchmarkId::new("Milhouse", "to_ssz"), &list, |b, list| {
         b.iter(|| list.to_ssz())
     });
-    group.bench_with_input(
-        BenchmarkId::new("Milhouse", "ssz_write to vec"),
-        &list,
-        |b, list| {
-            let mut buf: Vec<u8> = vec![0u8; list.ssz_bytes_len()];
-            b.iter(|| list.ssz_write(&mut buf))
-        },
-    );
+
     group.bench_with_input(
         BenchmarkId::new("Milhouse", "ssz_write to slice"),
         &list,
@@ -69,15 +65,6 @@ fn beacon_block(c: &mut Criterion) {
     );
 
     group.bench_with_input(
-        BenchmarkId::new("Sszb", "ssz_write to vec"),
-        &beacon_block,
-        |b, block| {
-            let mut buf: Vec<u8> = vec![0u8; block.ssz_bytes_len()];
-            b.iter(|| block.ssz_write(&mut buf))
-        },
-    );
-
-    group.bench_with_input(
         BenchmarkId::new("Sszb", "ssz_write to slice"),
         &beacon_block,
         |b, block| {
@@ -90,5 +77,37 @@ fn beacon_block(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, basic_types, beacon_block);
+fn beacon_state(c: &mut Criterion) {
+    let mut group = c.benchmark_group("BeaconState");
+    let state_bytes: Vec<u8> = std::fs::read("beacon-state.ssz").unwrap();
+    let beacon_state = <BeaconState as SszDecode>::from_ssz_bytes(state_bytes.as_slice()).unwrap();
+    group.throughput(Throughput::Bytes(state_bytes.len() as u64));
+    group.sample_size(10);
+
+    group.bench_with_input(
+        BenchmarkId::new("Sszb", "decode"),
+        state_bytes.as_slice(),
+        |b, bytes| b.iter(|| <BeaconState as SszDecode>::from_ssz_bytes(bytes).unwrap()),
+    );
+
+    group.bench_with_input(
+        BenchmarkId::new("Sszb", "encode naive"),
+        &beacon_state,
+        |b, state| b.iter(|| state.to_ssz()),
+    );
+
+    group.bench_with_input(
+        BenchmarkId::new("Sszb", "ssz_write to slice"),
+        &beacon_state,
+        |b, state| {
+            let len = state.ssz_bytes_len();
+            let mut buf: Vec<u8> = vec![0u8; len];
+            b.iter(|| state.ssz_write(&mut buf.as_mut_slice()))
+        },
+    );
+
+    group.finish();
+}
+
+criterion_group!(benches, basic_types, beacon_block, beacon_state);
 criterion_main!(benches);
