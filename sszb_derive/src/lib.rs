@@ -227,10 +227,14 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
                     })
                 } else {
 
-                    let bytes = variable_bytes.copy_to_bytes(field_len);
+                    // let bytes = variable_bytes.copy_to_bytes(field_len);
+                    let bytes = variable_bytes.chunk();
+                    let bytes = &bytes[..field_len];
                     // both the fixed and variable buffers are advanced at this point
                     // even though we don't make a call to ssz_read with them
-                    <#ty as sszb::SszDecode>::from_ssz_bytes(&bytes)?
+                    let res = <#ty as sszb::SszDecode>::from_ssz_bytes(&bytes)?;
+                    variable_bytes.advance(field_len);
+                    res
                 }
             }
         });

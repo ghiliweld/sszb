@@ -1,8 +1,8 @@
 use alloy_primitives::{Address, B256, U256};
 use bytes::buf::{Buf, BufMut};
-use ghilhouse::List;
+use ghilhouse::{List, Vector};
 use itertools::Itertools as _;
-use ssz_types::{BitVector, FixedVector as Vector};
+use ssz_types::{BitVector, FixedVector, VariableList};
 use sszb::*;
 use sszb_derive::{SszbDecode, SszbEncode};
 use tree_hash_derive::TreeHash;
@@ -54,7 +54,7 @@ pub struct Validator {
 
 #[derive(Clone, SszbEncode, SszbDecode, PartialEq, Debug, TreeHash)]
 pub struct SyncCommittee {
-    pub pubkeys: Vector<PublicKeyBytes, typenum::U512>,
+    pub pubkeys: FixedVector<PublicKeyBytes, typenum::U512>,
     pub aggregate_pubkey: PublicKeyBytes,
 }
 
@@ -64,13 +64,13 @@ pub struct ExecutionPayloadHeader {
     pub fee_recipient: Address,
     pub state_root: B256,
     pub receipts_root: B256,
-    pub logs_bloom: Vector<u8, typenum::U256>,
+    pub logs_bloom: FixedVector<u8, typenum::U256>,
     pub prev_randao: B256,
     pub block_number: u64,
     pub gas_limit: u64,
     pub gas_used: u64,
     pub timestamp: u64,
-    pub extra_data: List<u8, typenum::U32>,
+    pub extra_data: VariableList<u8, typenum::U32>,
     pub base_fee_per_gas: U256,
     pub block_hash: B256,
     pub transactions_root: B256,

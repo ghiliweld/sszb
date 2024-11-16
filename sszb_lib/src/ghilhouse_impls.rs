@@ -1,5 +1,5 @@
 use crate::{
-    read_offset_from_buf, sanitize_offset, ssz_decode_variable_length_items, DecodeError,
+    read_offset_from_slice, sanitize_offset, ssz_decode_variable_length_items, DecodeError,
     SszDecode, SszEncode, TryFromIter, BYTES_PER_LENGTH_OFFSET,
 };
 use bytes::buf::{Buf, BufMut};
@@ -122,10 +122,11 @@ impl<T: SszDecode + Value, N: Unsigned> SszDecode for List<T, N> {
                 )));
             }
 
-            let bytes = variable_bytes.copy_to_bytes(num_items * <T as SszDecode>::ssz_fixed_len());
+            // let bytes = variable_bytes.copy_to_bytes(num_items * <T as SszDecode>::ssz_fixed_len());
 
             process_results(
-                bytes
+                variable_bytes
+                    .chunk()
                     .chunks_exact(<T as SszDecode>::ssz_fixed_len())
                     .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk)),
                 |iter| List::try_from_iter(iter),
@@ -133,14 +134,14 @@ impl<T: SszDecode + Value, N: Unsigned> SszDecode for List<T, N> {
             .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)))
         } else {
             // we move over variable_bytes to var_offsets (of type Bytes) since it has more methods for us to work with
-            let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
+            // let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
+            let var_offsets = variable_bytes.chunk();
 
-            let first_offset =
-                read_offset_from_buf(&mut var_offsets.slice(0..BYTES_PER_LENGTH_OFFSET))?;
+            let first_offset = read_offset_from_slice(&var_offsets[0..BYTES_PER_LENGTH_OFFSET])?;
             sanitize_offset(
                 first_offset,
                 None,
-                var_offsets.slice(BYTES_PER_LENGTH_OFFSET..).len(),
+                var_offsets[BYTES_PER_LENGTH_OFFSET..].len(),
                 Some(first_offset),
             )?;
             if first_offset % BYTES_PER_LENGTH_OFFSET != 0 || first_offset < BYTES_PER_LENGTH_OFFSET
@@ -160,8 +161,12 @@ impl<T: SszDecode + Value, N: Unsigned> SszDecode for List<T, N> {
             }
 
             // var_offsets now only contains the offsets, and var_items contains the list items (bytes)
-            let mut var_items = var_offsets.split_off(num_items * BYTES_PER_LENGTH_OFFSET);
-            ssz_decode_variable_length_items(var_offsets, &mut var_items)
+            // let mut var_items = var_offsets.split_off(num_items * BYTES_PER_LENGTH_OFFSET);
+            let mut var_items = &var_offsets[(num_items * BYTES_PER_LENGTH_OFFSET)..];
+            ssz_decode_variable_length_items(
+                &var_offsets[..(num_items * BYTES_PER_LENGTH_OFFSET)],
+                &mut var_items,
+            )
         }
     }
 }
@@ -275,19 +280,27 @@ impl<T: SszDecode + Value, N: Unsigned> SszDecode for Vector<T, N> {
             }
 
             // create slice of length `len * T::ssz_fixed_len`
-            let bytes = fixed_bytes.copy_to_bytes(len * <T as SszDecode>::ssz_fixed_len());
+            // let bytes = fixed_bytes.copy_to_bytes(len * <T as SszDecode>::ssz_fixed_len());
+            let bytes = &fixed_bytes.chunk()[..(len * <T as SszDecode>::ssz_fixed_len())];
 
-            process_results(
+            let res = process_results(
                 bytes
                     .chunks_exact(<T as SszDecode>::ssz_fixed_len())
                     .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk)),
                 |iter| Vector::try_from_iter(iter),
             )?
-            .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)))
+            .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)));
+
+            fixed_bytes.advance(len * <T as SszDecode>::ssz_fixed_len());
+            res
         } else {
             // T is not static so data resides in variable_bytes
-            let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
-            let mut var_items = var_offsets.split_off(len * BYTES_PER_LENGTH_OFFSET);
+            // let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
+            // let mut var_items = var_offsets.split_off(len * BYTES_PER_LENGTH_OFFSET);
+            // ssz_decode_variable_length_items(var_offsets, &mut var_items)
+
+            let var_offsets = &variable_bytes.chunk()[..(len * BYTES_PER_LENGTH_OFFSET)];
+            let mut var_items = &variable_bytes.chunk()[(len * BYTES_PER_LENGTH_OFFSET)..];
             ssz_decode_variable_length_items(var_offsets, &mut var_items)
         }
     }
