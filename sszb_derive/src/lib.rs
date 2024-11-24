@@ -201,6 +201,9 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
             read_stmts.push(quote! {
                 #ident = <_>::default();
             });
+            read_stmts_var.push(quote! {
+                #ident = <_>::default();
+            });
 
             continue;
         }
@@ -211,15 +214,52 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
         read_stmts.push(quote! {
             #ident: <#ty as sszb::SszDecode>::ssz_read(fixed_bytes, variable_bytes)?
         });
+    }
+
+    for (ty, ident, field_opts) in parse_ssz_fields(&struct_data) {
+        let ident = match ident {
+            Some(ref ident) => ident,
+            _ => panic!(
+                "#[ssz(struct_behaviour = \"container\")] only supports named struct fields."
+            ),
+        };
+
+        if field_opts.iter().any(|opt| opt.skip_decode) {
+            read_stmts_var.push(quote! {
+                #ident = <_>::default();
+            });
+
+            continue;
+        }
+
         read_stmts_var.push(quote! {
             #ident: if <#ty as sszb::SszDecode>::is_ssz_static() {
+                fixed_cursor = fixed_cursor.checked_add(<#ty as sszb::SszDecode>::ssz_fixed_len()).expect("overflow");
                 <#ty as sszb::SszDecode>::ssz_read(fixed_bytes, variable_bytes)?
             } else {
-                // read the offset to advanced the fixed_bytes buffer
-                sszb::read_offset_from_buf(fixed_bytes)?;
-                // read the next length of the variable type
-                // by calling .next() on offset_iter (defined in ssz_read)
-                let field_len = offset_iter.next().unwrap()?;
+                fixed_cursor = fixed_cursor.checked_add(sszb::BYTES_PER_LENGTH_OFFSET).expect("overflow");
+                let begin = sszb::read_offset_from_buf(fixed_bytes)?;
+
+                let mut end = None;
+                let mut start: usize = 0;
+                #(
+                    if #static_stmts {
+                        start = start
+                            .checked_add(#fixed_len_stmts)
+                            .expect("ssz fixed length overflow");
+                    } else {
+                        if start >= fixed_cursor && end.is_none() {
+                            let index = start - fixed_cursor;
+                            end = Some(sszb::read_offset_from_slice(&fixed_bytes.chunk()[index..(index + sszb::BYTES_PER_LENGTH_OFFSET)])?);
+                        } else {
+                            start = start
+                                .checked_add(sszb::BYTES_PER_LENGTH_OFFSET)
+                                .expect("ssz fixed length overflow");
+                        }
+                    }
+                )*
+
+                let field_len = end.unwrap_or(end_of_buffer) - begin;
                 if field_len > variable_bytes.remaining() {
                     return Err(sszb::DecodeError::InvalidByteLength {
                         len: field_len,
@@ -288,44 +328,10 @@ pub fn derive_decode(input: TokenStream) -> TokenStream {
                         )*
                     })
                 } else {
-                    // to get the length of variable-sized items before the decoding call
-                    // we have to instantiate an iterator that iterates over the fixed_bytes section
-                    // and only returns the length between the *offsets*.
-                    // the read_stmts will handle calling iter.next() to get the next variable length
-                    let mut fixed_vec = fixed_bytes.chunk().to_vec();
-                    let mut start_index: usize = 0;
-                    #(
-                        if #static_stmts {
-                            // splice fixed_vec by fixed_len_stmts starting at start
-                            let end_index: usize = start_index
-                                .checked_add(#fixed_len_stmts)
-                                .expect("ssz fixed length overflow");
-                            // skip over fixed-sized types
-                            fixed_vec.drain(start_index..end_index);
-                        } else {
-                            // retain offsets
-                            start_index = start_index
-                                .checked_add(sszb::BYTES_PER_LENGTH_OFFSET)
-                                .expect("BYTES_PER_LENGTH_OFFSET overflow");
-                        }
-                    )*
 
-                    // now we have a fixed_vec containing only offsets
-                    // h/t the grandine team: https://github.com/grandinetech/grandine/blob/develop/ssz/src/shared.rs#L174
-                    let mut offset_iter = fixed_vec
-                        .chunks_exact(sszb::BYTES_PER_LENGTH_OFFSET)
-                        .map(sszb::read_offset_from_slice)
-                        .chain(core::iter::once(Ok(fixed_bytes.remaining() + variable_bytes.remaining())))
-                        .tuple_windows()
-                        .map(move |(start_result, end_result)| {
-                            let start = start_result.unwrap();
-                            let end = end_result.unwrap();
-                            match end.checked_sub(start) {
-                                Some(res) => Ok(res),
-                                None => Err(sszb::DecodeError::OffsetsAreDecreasing(start)),
-                            }
-                        });
+                    let end_of_buffer: usize = fixed_bytes.remaining() + variable_bytes.remaining();
 
+                    let mut fixed_cursor: usize = 0;
                     Ok(Self {
                         #(
                             #read_stmts_var,
