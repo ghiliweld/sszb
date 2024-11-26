@@ -2,3 +2,5 @@
 Cargo.lock
 *.ssz
 .DS_Store
+examples/
+dhat-*
