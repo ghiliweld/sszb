@@ -20,8 +20,10 @@ ssz_types = "0.8.0"
 typenum = "1.17.0"
 tree_hash = "0.8.0"
 tree_hash_derive = "0.8.0"
+ethereum_ssz = "0.8.0"
 
 [dev-dependencies]
+dhat = "0.3.3"
 sszb_derive = { path = "../sszb_derive" }
 
 [[bench]]

@@ -8,7 +8,7 @@ use itertools::{process_results, Itertools as _};
 use milhouse::{Error as MilhouseError, List as PersistentList, Value, Vector as PersistentVector};
 use paste::paste;
 use smallvec::ToSmallVec;
-use ssz_types::{BitList, BitVector, FixedVector, VariableList};
+use ssz_types::{BitList, BitVector, Error as SszTypeError, FixedVector, VariableList};
 use typenum::Unsigned;
 
 macro_rules! uint_ssz_decode {
@@ -831,12 +831,21 @@ where
     type Error = DecodeError;
 
     fn try_from_iter(iter: impl Iterator<Item = T>) -> Result<Self, Self::Error> {
-        match VariableList::new(iter.collect()) {
-            Ok(list) => Ok(list),
-            _ => Err(DecodeError::BytesInvalid(format!(
-                "Error processing results"
-            ))),
+        let n = N::to_usize();
+        let iterator = iter.into_iter();
+
+        // Pre-allocate up to `N` elements based on the iterator size hint.
+        let (_, opt_max_len) = iterator.size_hint();
+        let mut l = Self::new(Vec::with_capacity(
+            opt_max_len.map_or(n, |max_len| std::cmp::min(n, max_len)),
+        ))
+        .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)))?;
+        for item in iterator {
+            l.push(item).map_err(|e| {
+                DecodeError::BytesInvalid(format!("Error processing results: {:?}", e))
+            })?
         }
+        Ok(l)
     }
 }
 
@@ -860,12 +869,29 @@ where
     type Error = DecodeError;
 
     fn try_from_iter(iter: impl Iterator<Item = T>) -> Result<Self, Self::Error> {
-        match FixedVector::new(iter.collect()) {
-            Ok(list) => Ok(list),
-            _ => Err(DecodeError::BytesInvalid(format!(
-                "Error processing results"
-            ))),
+        let n = N::to_usize();
+        let iterator = iter.into_iter();
+
+        let (_, opt_max_len) = iterator.size_hint();
+        let mut vec =
+            Vec::with_capacity(opt_max_len.map_or(n, |max_len| std::cmp::min(n, max_len)));
+
+        for item in iterator {
+            // Bail out as soon as the length tries to exceed the limit. This guards against
+            // memory denial-of-service attacks.
+            if vec.len() >= n {
+                return Err(SszTypeError::OutOfBounds {
+                    i: vec.len(),
+                    len: n,
+                })
+                .map_err(|e| {
+                    DecodeError::BytesInvalid(format!("Error processing results: {:?}", e))
+                });
+            }
+            vec.push(item);
         }
+        Self::new(vec)
+            .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)))
     }
 }
 
