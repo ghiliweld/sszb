@@ -9,8 +9,8 @@ use tree_hash_derive::TreeHash;
 
 type ByteList<N> = List<u8, N>;
 type ByteVector<N> = FixedVector<u8, N>;
-pub type SignatureBytes = ByteVector<typenum::U96>;
-type PublicKeyBytes = [u8; 48];
+pub type SignatureBytes = Sig; // ByteVector<typenum::U96>;
+type PublicKeyBytes = PKBytes; // [u8; 48];
 type KZGCommitment = [u8; 48];
 type H32 = [u8; 4];
 type H160 = Address;

@@ -14,6 +14,7 @@ ethereum-types = "0.15.1"
 itertools = "0.13.0"
 milhouse = "0.3.0"
 ghilhouse = { package = "milhouse", git = "https://github.com/ghiliweld/milhouse.git" }
+sigp_bls = { package = "bls", git = "https://github.com/paulhauner/lighthouse.git", branch = "sszb-compare" }
 paste = "1.0.15"
 smallvec = "1.13.2"
 ssz_types = "0.8.0"

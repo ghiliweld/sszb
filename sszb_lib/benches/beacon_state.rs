@@ -8,7 +8,7 @@ use sszb_derive::{SszbDecode, SszbEncode};
 use tree_hash_derive::TreeHash;
 
 type ByteVector<N> = Vector<u8, N>;
-type PublicKeyBytes = [u8; 48];
+type PublicKeyBytes = PKBytes; //[u8; 48];
 type H32 = ByteVector<typenum::U4>;
 
 #[derive(Clone, SszbEncode, SszbDecode, PartialEq, Debug, TreeHash, Default)]
