@@ -783,16 +783,27 @@ impl<T: SszDecode, N: Unsigned> SszDecode for FixedVector<T, N> {
             // let bytes = fixed_bytes.copy_to_bytes(len * <T as SszDecode>::ssz_fixed_len());
             let bytes = &fixed_bytes.chunk()[..(len * <T as SszDecode>::ssz_fixed_len())];
 
-            let res = process_results(
-                bytes
-                    .chunks_exact(<T as SszDecode>::ssz_fixed_len())
-                    .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk)),
-                |iter| FixedVector::try_from_iter(iter),
-            )?
-            .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)));
+            // let res = process_results(
+            //     bytes
+            //         .chunks_exact(<T as SszDecode>::ssz_fixed_len())
+            //         .map(|chunk| <T as SszDecode>::from_ssz_bytes(chunk)),
+            //     |iter| FixedVector::try_from_iter(iter),
+            // )?
+            // .map_err(|e| DecodeError::BytesInvalid(format!("Error processing results: {:?}", e)));
 
+            // fixed_bytes.advance(len * <T as SszDecode>::ssz_fixed_len());
+            // res
+
+            let vec = bytes
+                .chunks_exact(<T as SszDecode>::ssz_fixed_len())
+                .try_fold(Vec::with_capacity(len), |mut vec, chunk| {
+                    vec.push(<T as SszDecode>::from_ssz_bytes(chunk)?);
+                    Ok(vec)
+                })?;
             fixed_bytes.advance(len * <T as SszDecode>::ssz_fixed_len());
-            res
+            Self::new(vec).map_err(|e| {
+                DecodeError::BytesInvalid(format!("Wrong number of FixedVector elements: {:?}", e))
+            })
         } else {
             // let mut var_offsets = variable_bytes.copy_to_bytes(variable_bytes.remaining());
             // let mut var_items = var_offsets.split_off(len * BYTES_PER_LENGTH_OFFSET);
